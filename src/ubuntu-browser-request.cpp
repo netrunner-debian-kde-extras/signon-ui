@@ -18,38 +18,40 @@
  * with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "browser-process.h"
+#include "ubuntu-browser-request.h"
 
 #include "debug.h"
-#include "dialog.h"
+#include "qquick-dialog.h"
+#include "errors.h"
 #include "i18n.h"
-#include "remote-request-interface.h"
 
-#include <QQmlContext>
-#include <SignOn/uisessiondata_priv.h>
-#include <stdio.h>
 #include <QDir>
-#include <QFile>
+#include <QQmlContext>
+#include <QStandardPaths>
 #include <QTimer>
+#include <SignOn/uisessiondata_priv.h>
 
 using namespace SignOnUi;
+using namespace SignOnUi::QQuick;
 
 namespace SignOnUi {
 
-class BrowserProcessPrivate: public QObject
+static const QLatin1String remoteProcessPath(REMOTE_PROCESS_PATH);
+
+class UbuntuBrowserRequestPrivate: public QObject
 {
     Q_OBJECT
-    Q_DECLARE_PUBLIC(BrowserProcess)
+    Q_DECLARE_PUBLIC(UbuntuBrowserRequest)
     Q_PROPERTY(QUrl pageComponentUrl READ pageComponentUrl CONSTANT)
     Q_PROPERTY(QUrl currentUrl READ currentUrl WRITE setCurrentUrl)
     Q_PROPERTY(QUrl startUrl READ startUrl CONSTANT)
     Q_PROPERTY(QUrl finalUrl READ finalUrl CONSTANT)
 
 public:
-    BrowserProcessPrivate(BrowserProcess *request);
-    ~BrowserProcessPrivate();
+    UbuntuBrowserRequestPrivate(UbuntuBrowserRequest *request);
+    ~UbuntuBrowserRequestPrivate();
 
-    void processClientRequest();
+    void start();
 
     void setCurrentUrl(const QUrl &url);
     QUrl pageComponentUrl() const;
@@ -57,21 +59,12 @@ public:
     QUrl startUrl() const { return m_startUrl; }
     QUrl finalUrl() const { return m_finalUrl; }
     QUrl responseUrl() const { return m_responseUrl; }
-    WId windowId() const {
-        return m_clientData[SSOUI_KEY_WINDOWID].toUInt();
-    }
-    bool embeddedUi() const {
-        return m_clientData[SSOUI_KEY_EMBEDDED].toBool();
-    }
-
 
 public Q_SLOTS:
     void onLoadStarted();
     void onLoadFinished(bool ok);
-    void cancel();
 
 private Q_SLOTS:
-    void start(const QVariantMap &params);
     void onFailTimer();
     void onFinished();
 
@@ -80,7 +73,6 @@ private:
 
 private:
     Dialog *m_dialog;
-    QVariantMap m_clientData;
     QUrl m_currentUrl;
     QUrl m_startUrl;
     QUrl m_finalUrl;
@@ -88,17 +80,17 @@ private:
     QString m_host;
     QFile m_input;
     QFile m_output;
-    RemoteRequestServer m_server;
     QTimer m_failTimer;
-    mutable BrowserProcess *q_ptr;
+    mutable UbuntuBrowserRequest *q_ptr;
 };
 
 } // namespace
 
-BrowserProcessPrivate::BrowserProcessPrivate(BrowserProcess *process):
-    QObject(process),
+UbuntuBrowserRequestPrivate::UbuntuBrowserRequestPrivate(
+    UbuntuBrowserRequest *request):
+    QObject(request),
     m_dialog(0),
-    q_ptr(process)
+    q_ptr(request)
 {
     m_failTimer.setSingleShot(true);
     m_failTimer.setInterval(3000);
@@ -106,20 +98,57 @@ BrowserProcessPrivate::BrowserProcessPrivate(BrowserProcess *process):
                      this, SLOT(onFailTimer()));
 }
 
-BrowserProcessPrivate::~BrowserProcessPrivate()
+UbuntuBrowserRequestPrivate::~UbuntuBrowserRequestPrivate()
 {
     delete m_dialog;
 }
 
-QUrl BrowserProcessPrivate::pageComponentUrl() const
+void UbuntuBrowserRequestPrivate::start()
 {
+    Q_Q(UbuntuBrowserRequest);
+
+    const QVariantMap &params = q->parameters();
+    TRACE() << params;
+
+    QString cachePath =
+        QStandardPaths::writableLocation(QStandardPaths::CacheLocation);
+    QDir rootDir = cachePath + QString("/id-%1").arg(q->identity());
+    if (!rootDir.exists()) {
+        rootDir.mkpath(".");
+    }
+
+    m_finalUrl = params.value(SSOUI_KEY_FINALURL).toString();
+    m_startUrl = params.value(SSOUI_KEY_OPENURL).toString();
+    buildDialog(params);
+
+    QObject::connect(m_dialog, SIGNAL(finished(int)),
+                     this, SLOT(onFinished()));
+
+    QUrl webview("qrc:/MainWindow.qml");
+    QDir qmlDir("/usr/share/signon-ui/qml");
+    if (qmlDir.exists())
+    {
+        QFileInfo qmlFile(qmlDir.absolutePath() + "/MainWindow.qml");
+        if (qmlFile.exists())
+            webview.setUrl(qmlFile.absoluteFilePath());
+    }
+
+    m_dialog->rootContext()->setContextProperty("signonRequest", this);
+    m_dialog->rootContext()->setContextProperty("rootDir",
+                                                QUrl::fromLocalFile(rootDir.absolutePath()));
+    m_dialog->setSource(webview);
+}
+
+QUrl UbuntuBrowserRequestPrivate::pageComponentUrl() const
+{
+    Q_Q(const UbuntuBrowserRequest);
     /* We define the X-PageComponent key to let the clients override the QML
      * component to be used to build the authentication page.
      * To prevent a malicious client to show it's own UI, we require that the
      * file path begins with "/usr/share/signon-ui/" (where Ubuntu click
      * packages cannot install files).
      */
-    QUrl providedUrl = m_clientData.value("X-PageComponent").toString();
+    QUrl providedUrl = q->clientData().value("X-PageComponent").toString();
     if (providedUrl.isValid() && providedUrl.isLocalFile() &&
         providedUrl.path().startsWith("/usr/share/signon-ui/")) {
         return providedUrl;
@@ -128,22 +157,7 @@ QUrl BrowserProcessPrivate::pageComponentUrl() const
     }
 }
 
-void BrowserProcessPrivate::processClientRequest()
-{
-    TRACE();
-    m_input.open(stdin, QIODevice::ReadOnly);
-    m_output.open(stdout, QIODevice::WriteOnly);
-
-    QObject::connect(&m_server, SIGNAL(started(const QVariantMap&)),
-                     this, SLOT(start(const QVariantMap&)));
-    QObject::connect(&m_server, SIGNAL(canceled()),
-                     this, SLOT(cancel()));
-
-    /* This effectively starts the communication with the client */
-    m_server.setChannels(&m_input, &m_output);
-}
-
-void BrowserProcessPrivate::setCurrentUrl(const QUrl &url)
+void UbuntuBrowserRequestPrivate::setCurrentUrl(const QUrl &url)
 {
     TRACE() << "Url changed:" << url;
     m_failTimer.stop();
@@ -162,13 +176,15 @@ void BrowserProcessPrivate::setCurrentUrl(const QUrl &url)
     }
 }
 
-void BrowserProcessPrivate::onLoadStarted()
+void UbuntuBrowserRequestPrivate::onLoadStarted()
 {
     m_failTimer.stop();
 }
 
-void BrowserProcessPrivate::onLoadFinished(bool ok)
+void UbuntuBrowserRequestPrivate::onLoadFinished(bool ok)
 {
+    Q_Q(const UbuntuBrowserRequest);
+
     TRACE() << "Load finished" << ok;
 
     if (!ok) {
@@ -178,68 +194,29 @@ void BrowserProcessPrivate::onLoadFinished(bool ok)
 
     if (!m_dialog->isVisible()) {
         if (m_responseUrl.isEmpty()) {
-            Dialog::ShowMode mode = (windowId() == 0) ? Dialog::TopLevel :
-                embeddedUi() ? Dialog::Embedded : Dialog::Transient;
-            m_dialog->show(windowId(), mode);
+            Dialog::ShowMode mode = (q->windowId() == 0) ? Dialog::TopLevel :
+                q->embeddedUi() ? Dialog::Embedded : Dialog::Transient;
+            m_dialog->show(q->windowId(), mode);
         } else {
             onFinished();
         }
     }
 }
 
-void BrowserProcessPrivate::start(const QVariantMap &params)
+void UbuntuBrowserRequestPrivate::onFailTimer()
 {
-    TRACE() << params;
-    if (params.contains(SSOUI_KEY_CLIENT_DATA)) {
-        m_clientData = params[SSOUI_KEY_CLIENT_DATA].toMap();
-    }
-    m_finalUrl = params.value(SSOUI_KEY_FINALURL).toString();
-    m_startUrl = params.value(SSOUI_KEY_OPENURL).toString();
-    buildDialog(params);
-
-    QObject::connect(m_dialog, SIGNAL(finished(int)),
-                     this, SLOT(onFinished()));
-
-    QUrl webview("qrc:/MainWindow.qml");
-    QDir qmlDir("/usr/share/signon-ui/qml");
-    if (qmlDir.exists())
-    {
-        QFileInfo qmlFile(qmlDir.absolutePath() + "/MainWindow.qml");
-        if (qmlFile.exists())
-            webview.setUrl(qmlFile.absoluteFilePath());
-    }
-
-    m_dialog->rootContext()->setContextProperty("request", this);
-    m_dialog->setSource(webview);
-}
-
-void BrowserProcessPrivate::cancel()
-{
-    Q_Q(BrowserProcess);
-
-    TRACE() << "Client requested to cancel";
-    m_server.setCanceled();
-    if (m_dialog) {
-        m_dialog->close();
-    }
-    Q_EMIT q->finished();
-}
-
-void BrowserProcessPrivate::onFailTimer()
-{
-    Q_Q(BrowserProcess);
+    Q_Q(UbuntuBrowserRequest);
 
     TRACE() << "Page loading failed";
-    m_server.setResult(QVariantMap());
     if (m_dialog) {
         m_dialog->close();
     }
-    Q_EMIT q->finished();
+    q->setResult(QVariantMap());
 }
 
-void BrowserProcessPrivate::onFinished()
+void UbuntuBrowserRequestPrivate::onFinished()
 {
-    Q_Q(BrowserProcess);
+    Q_Q(UbuntuBrowserRequest);
 
     TRACE() << "Browser dialog closed";
 
@@ -247,13 +224,12 @@ void BrowserProcessPrivate::onFinished()
     QUrl url = m_responseUrl.isEmpty() ? m_currentUrl : m_responseUrl;
     reply[SSOUI_KEY_URLRESPONSE] = url.toString();
 
-    m_server.setResult(reply);
     m_dialog->close();
 
-    Q_EMIT q->finished();
+    q->setResult(reply);
 }
 
-void BrowserProcessPrivate::buildDialog(const QVariantMap &params)
+void UbuntuBrowserRequestPrivate::buildDialog(const QVariantMap &params)
 {
     m_dialog = new Dialog;
 
@@ -272,20 +248,25 @@ void BrowserProcessPrivate::buildDialog(const QVariantMap &params)
     TRACE() << "Dialog was built";
 }
 
-BrowserProcess::BrowserProcess(QObject *parent):
-    QObject(parent),
-    d_ptr(new BrowserProcessPrivate(this))
+UbuntuBrowserRequest::UbuntuBrowserRequest(const QDBusConnection &connection,
+                                           const QDBusMessage &message,
+                                           const QVariantMap &parameters,
+                                           QObject *parent):
+    Request(connection, message, parameters, parent),
+    d_ptr(new UbuntuBrowserRequestPrivate(this))
 {
 }
 
-BrowserProcess::~BrowserProcess()
+UbuntuBrowserRequest::~UbuntuBrowserRequest()
 {
 }
 
-void BrowserProcess::processClientRequest()
+void UbuntuBrowserRequest::start()
 {
-    Q_D(BrowserProcess);
-    d->processClientRequest();
+    Q_D(UbuntuBrowserRequest);
+
+    Request::start();
+    d->start();
 }
 
-#include "browser-process.moc"
+#include "ubuntu-browser-request.moc"

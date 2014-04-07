@@ -1,7 +1,7 @@
 /*
  * This file is part of signon-ui
  *
- * Copyright (C) 2013 Canonical Ltd.
+ * Copyright (C) 2014 Canonical Ltd.
  *
  * Contact: Alberto Mardegan <alberto.mardegan@canonical.com>
  *
@@ -18,33 +18,50 @@
  * with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef SIGNON_UI_BROWSER_PROCESS_H
-#define SIGNON_UI_BROWSER_PROCESS_H
+#ifndef SIGNON_UI_QQUICK_DIALOG_H
+#define SIGNON_UI_QQUICK_DIALOG_H
 
 #include <QObject>
+#include <QQuickView>
 
 namespace SignOnUi {
 
-class BrowserProcessPrivate;
-class BrowserProcess: public QObject
+namespace QQuick {
+
+class Dialog: public QQuickView
 {
     Q_OBJECT
 
 public:
-    BrowserProcess(QObject *parent = 0);
-    ~BrowserProcess();
+    enum DialogCode {
+        Rejected = 0,
+        Accepted,
+    };
+    enum ShowMode {
+        TopLevel = 0,
+        Transient,
+        Embedded,
+    };
+    explicit Dialog(QWindow *parent = 0);
+    ~Dialog();
 
-    void processClientRequest();
+    void show(WId parent, ShowMode mode);
+
+public Q_SLOTS:
+    void accept();
+    void reject();
+    void done(int result);
 
 Q_SIGNALS:
-    void finished();
+    void finished(int result);
 
-private:
-    BrowserProcessPrivate *d_ptr;
-    Q_DECLARE_PRIVATE(BrowserProcess)
+protected:
+    bool event(QEvent *e);
 };
 
 } // namespace
 
-#endif // SIGNON_UI_BROWSER_PROCESS_H
+} // namespace
+
+#endif // SIGNON_UI_QQUICK_DIALOG_H
 
