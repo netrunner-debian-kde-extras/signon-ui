@@ -29,9 +29,8 @@ Build-Depends: dbus-test-runner,
                xvfb,
 Standards-Version: 3.9.6
 Homepage: https://launchpad.net/signon-ui
-# If you aren't a member of ~online-accounts but need to upload packaging changes,
-# just go ahead.  ~online-accounts will notice and sync up the code again.
-Vcs-Bzr: https://code.launchpad.net/~online-accounts/signon-ui/trunk
+Vcs-Browser: http://anonscm.debian.org/cgit/pkg-kde/kde-extras/signon-ui.git
+Vcs-Git: git://anonscm.debian.org/pkg-kde/kde-extras/signon-ui.git
 
 Package: signon-ui-x11
 Architecture: any
