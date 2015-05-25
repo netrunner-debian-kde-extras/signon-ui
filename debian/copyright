@@ -1,5 +1,5 @@
-Format: http://dep.debian.net/deps/dep5
-Upstream-Name: online-accounts-signon-ui
+Format: http://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
+Upstream-Name: signon-ui
 Upstream-Contact: Alberto Mardegan <alberto.mardegan@canonical.com>
 Source: https://launchpad.net/online-accounts-signon-ui
 
