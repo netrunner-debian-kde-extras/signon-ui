@@ -27,6 +27,7 @@ Build-Depends: dbus-test-runner,
                libqt5sensors5-dev,
                signon-plugins-dev,
                xvfb,
+               xauth,
 Standards-Version: 3.9.6
 Homepage: https://launchpad.net/signon-ui
 Vcs-Browser: http://anonscm.debian.org/cgit/pkg-kde/kde-extras/signon-ui.git

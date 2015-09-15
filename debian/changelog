@@ -5,6 +5,7 @@ signon-ui (0.17+15.10.20150810-1) UNRELEASED; urgency=medium
   * Use QT_SELECT=qt5 in rules instead of qt5-default in build-dep
   * Remove ubuntu-specific version number from qtbase5-dev
   * Disable qtlocation5-dev from build-dep as Debian doesn't have it.
+  * Add xauth to build-dep needed for tests.
 
  -- Diane Trout <diane@debian.org>  Mon, 14 Sep 2015 22:06:53 -0700
 
