@@ -12,6 +12,7 @@ signon-ui (0.17+15.10.20150810-1) UNRELEASED; urgency=medium
   * Remove Breaks/Replaces from signon-ui-service as we have never been
     released to Debian
   * Add watch file
+  * Add LGPL-2.1-QTexception-1.1 text to debian/copyright
 
  -- Diane Trout <diane@debian.org>  Mon, 14 Sep 2015 22:06:53 -0700
 
