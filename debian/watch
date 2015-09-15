@@ -1,0 +1,2 @@
+version=3
+http://archive.ubuntu.com/ubuntu/pool/main/s/signon-ui/ signon-ui_(.+).orig.tar.(?:gz|xz|bz2)
