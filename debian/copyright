@@ -43,10 +43,6 @@ License: GPL-3 or LGPL-2.1-QTexception-1.1
  .
  $QT_END_LICENSE$
 
-Files: COPYING
-Copyright: 2007, Free Software Foundation, Inc. <http://fsf.org/>
-License: GPL-3+
-
 Files: debian/*
 Copyright: 2011 Ken VanDine <ken.vandine@canonical.com>
            2015 Diane Trout <diane@debian.org>
