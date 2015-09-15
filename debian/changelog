@@ -2,6 +2,7 @@ signon-ui (0.17+15.10.20150810-1) UNRELEASED; urgency=medium
 
   * Prepare initial Debian release.
   * Change maintainer to Debian qt-kde team, add myself as uploader
+  * Use QT_SELECT=qt5 in rules instead of qt5-default in build-dep
 
  -- Diane Trout <diane@debian.org>  Mon, 14 Sep 2015 22:06:53 -0700
 
