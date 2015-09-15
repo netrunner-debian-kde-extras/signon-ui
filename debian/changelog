@@ -1,8 +1,8 @@
-signon-ui (0.17+20150410-1~) UNRELEASED; urgency=medium
+signon-ui (0.17+15.10.20150810-1) UNRELEASED; urgency=medium
 
   * Prepare initial Debian release.
 
- -- Maximiliano Curia <maxy@debian.org>  Mon, 25 May 2015 13:09:53 +0200
+ -- Diane Trout <diane@debian.org>  Mon, 14 Sep 2015 22:06:53 -0700
 
 signon-ui (0.17+15.04.20150410-0ubuntu1) vivid; urgency=medium
 
