@@ -1,4 +1,10 @@
-signon-ui (0.17+15.10.20150810-1) UNRELEASED; urgency=medium
+signon-ui (0.17+15.10.20150810-2) UNRELEASED; urgency=medium
+
+  * Update copyright file with more dates
+
+ -- Diane Trout <diane@debian.org>  Fri, 25 Sep 2015 12:31:18 -0700
+
+signon-ui (0.17+15.10.20150810-1) unstable; urgency=medium
 
   * Prepare initial Debian release.
   * Change maintainer to Debian qt-kde team, add myself as uploader
