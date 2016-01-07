@@ -1,3 +1,9 @@
+signon-ui (0.17+16.04.20151125-1) UNRELEASED; urgency=medium
+
+  * New upstream release.
+
+ -- Debian Qt/KDE Maintainers <debian-qt-kde@lists.debian.org>  Wed, 06 Jan 2016 16:51:21 -0800
+
 signon-ui (0.17+15.10.20150810-2) unstable; urgency=medium
 
   * Update copyright file with more dates
